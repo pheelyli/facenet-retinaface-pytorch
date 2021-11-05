@@ -2,6 +2,8 @@
 #   对视频中的predict.py进行了修改，
 #   将单张图片预测、摄像头检测和FPS测试功能
 #   整合到了一个py文件中，通过指定mode进行模式的修改。
+#   python predict.py /temp1/img /temp1/result
+#
 #----------------------------------------------------#
 import time
 import os, sys
@@ -57,8 +59,8 @@ if __name__ == "__main__":
                 image   = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
                 r_image = retinaface.detect_image(image)
 
-                r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
-                cv2.imwrite(result, r_image)
+                # r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
+                # cv2.imwrite(result, r_image)
 
     elif  mode == "predict":
         '''

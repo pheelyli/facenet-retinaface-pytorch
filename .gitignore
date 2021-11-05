@@ -6,6 +6,7 @@
 *.exe
 *.o
 *.so
+*.
 
 # Packages #
 ############
@@ -26,6 +27,7 @@
 *.sql
 *.sqlite
 *.pth
+*.npy
 
 # OS generated files #
 ######################
