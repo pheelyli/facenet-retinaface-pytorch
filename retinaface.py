@@ -1,5 +1,5 @@
 import time
-
+import logging, sys
 import cv2
 import numpy as np
 import torch
@@ -15,6 +15,8 @@ from utils.config import cfg_mnet, cfg_re50
 from utils.utils import (Alignment_1, compare_faces, letterbox_image,
                          retinaface_correct_boxes)
 
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+simThreshold = 0.9
 
 def cv2ImgAddText(img, label, left, top, textColor=(255, 255, 255)):
     img = Image.fromarray(np.uint8(img))
@@ -37,12 +39,12 @@ def preprocess_input(image):
 #--------------------------------------#
 class Retinaface(object):
     _defaults = {
-        "retinaface_model_path" : 'model_data/Retinaface_mobilenet0.25.pth',
+        "retinaface_model_path" : 'model_data/Retinaface_resnet50.pth',
         #-----------------------------------#
         #   可选retinaface_backbone有
         #   mobilenet和resnet50
         #-----------------------------------#
-        "retinaface_backbone"   : "mobilenet",
+        "retinaface_backbone"   : "resnet50",
         "confidence"            : 0.5,
         "iou"                   : 0.3,
         #----------------------------------------------------------------------#
@@ -282,10 +284,13 @@ class Retinaface(object):
             boxes_conf_landms = np.concatenate([boxes,conf,landms],-1)
             
             boxes_conf_landms = non_max_suppression(boxes_conf_landms, self.confidence)
+
+        
         
         #---------------------------------------------------#
         #   如果没有预测框则返回原图
         #---------------------------------------------------#
+        
         if len(boxes_conf_landms)<=0:
             return old_image
 
@@ -331,6 +336,9 @@ class Retinaface(object):
         #   人脸特征比对-开始
         #-----------------------------------------------#
         face_names = []
+        exist_names = {}
+        output_indexs = []
+
         for face_encoding in face_encodings:
             # 取出一张脸并与数据库中所有的人脸进行对比，计算得分
             matches, face_distances = compare_faces(self.known_face_encodings, face_encoding, tolerance = self.facenet_threhold)
@@ -345,30 +353,54 @@ class Retinaface(object):
         #   人脸特征比对-结束
         #-----------------------------------------------#
         
+        #先看看要不要输出，同名字的，只输入最大相似值的那个
         for i, b in enumerate(boxes_conf_landms):
-            text = "{:.4f}".format(b[4])
-            b = list(map(int, b))
-            cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
-            cx = b[0]
-            cy = b[1] + 12
-            cv2.putText(old_image, text, (cx, cy),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
-
-            # landms
-            cv2.circle(old_image, (b[5], b[6]), 1, (0, 0, 255), 4)
-            cv2.circle(old_image, (b[7], b[8]), 1, (0, 255, 255), 4)
-            cv2.circle(old_image, (b[9], b[10]), 1, (255, 0, 255), 4)
-            cv2.circle(old_image, (b[11], b[12]), 1, (0, 255, 0), 4)
-            cv2.circle(old_image, (b[13], b[14]), 1, (255, 0, 0), 4)
-            
             name = face_names[i]
-            # font = cv2.FONT_HERSHEY_SIMPLEX
-            # cv2.putText(old_image, name, (b[0] , b[3] - 15), font, 0.75, (255, 255, 255), 2) 
-            #--------------------------------------------------------------#
-            #   cv2不能写中文，加上这段可以，但是检测速度会有一定的下降。
-            #   如果不是必须，可以换成cv2只显示英文。
-            #--------------------------------------------------------------#
-            old_image = cv2ImgAddText(old_image, name, b[0]+5 , b[3] - 25)
+            # if name != "Unknown":
+            if b[4] >= simThreshold:
+                if name != "Unknown":
+                    if name in exist_names :
+                        if exist_names[name]>=b[4]:
+                            #新来的更小，不用做
+                            continue
+                        else:
+                            #更新一下最大值
+                            exist_names[name] = b[4]
+                    else:
+                        #添加一个已存在
+                        exist_names[name] = b[4]
+
+                #没找到人的和有更高的，都要做
+                output_indexs.append(i)
+
+        #这里才是真正输出
+        for i, b in enumerate(boxes_conf_landms):
+            if output_indexs.count(i) >0:
+                name = face_names[i]
+                text = "{:.4f}".format(b[4])
+                b = list(map(int, b))
+                # cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
+                cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 255, 0), 2)
+                cx = b[0]
+                cy = b[1] + 12
+                cv2.putText(old_image, text, (cx, cy),
+                            cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+
+                # landms
+                cv2.circle(old_image, (b[5], b[6]), 1, (0, 0, 255), 4)
+                cv2.circle(old_image, (b[7], b[8]), 1, (0, 255, 255), 4)
+                cv2.circle(old_image, (b[9], b[10]), 1, (255, 0, 255), 4)
+                cv2.circle(old_image, (b[11], b[12]), 1, (0, 255, 0), 4)
+                cv2.circle(old_image, (b[13], b[14]), 1, (255, 0, 0), 4)
+                
+                # font = cv2.FONT_HERSHEY_SIMPLEX
+                # cv2.putText(old_image, name, (b[0] , b[3] - 15), font, 0.75, (255, 255, 255), 2) 
+                #--------------------------------------------------------------#
+                #   cv2不能写中文，加上这段可以，但是检测速度会有一定的下降。
+                #   如果不是必须，可以换成cv2只显示英文。
+                #--------------------------------------------------------------#
+                old_image = cv2ImgAddText(old_image, name, b[0]+5 , b[3] - 25)
+                logging.debug('%s - %s:%d,%d,%d,%d', name, text, b[0], b[1], b[2], b[3])
         return old_image
 
     def get_FPS(self, image, test_interval):

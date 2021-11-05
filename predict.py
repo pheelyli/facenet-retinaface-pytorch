@@ -4,7 +4,7 @@
 #   整合到了一个py文件中，通过指定mode进行模式的修改。
 #----------------------------------------------------#
 import time
-
+import os, sys
 import cv2
 import numpy as np
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     #   'video'表示视频检测
     #   'fps'表示测试fps
     #-------------------------------------------------------------------------#
-    mode = "predict"
+    mode = "batch"
     #-------------------------------------------------------------------------#
     #   video_path用于指定视频的路径，当video_path=0时表示检测摄像头
     #   video_save_path表示视频保存的路径，当video_save_path=""时表示不保存
@@ -30,7 +30,37 @@ if __name__ == "__main__":
     video_save_path = ""
     video_fps       = 25.0
 
-    if mode == "predict":
+    if mode == "batch":
+        '''
+        predict.py有几个注意点
+        1、无法进行批量预测，如果想要批量预测，可以利用os.listdir()遍历文件夹，利用cv2.imread打开图片文件进行预测。
+        2、如果想要保存，利用cv2.imwrite("img.jpg", r_image)即可保存。
+        3、如果想要获得框的坐标，可以进入detect_image函数，读取(b[0], b[1]), (b[2], b[3])这四个值。
+        4、如果想要截取下目标，可以利用获取到的(b[0], b[1]), (b[2], b[3])这四个值在原图上利用矩阵的方式进行截取。
+        5、在更换facenet网络后一定要重新进行人脸编码，运行encoding.py。
+        '''
+        if len(sys.argv) == 3:
+            srcDir = sys.argv[1]
+            dstDir = sys.argv[2]
+        else:
+            srcDir = input('Input source dir:')
+            dstDir = input('Input destination dir:')
+
+        srcDirs = os.listdir( srcDir )
+        for file in srcDirs:
+            ext = os.path.splitext(file)[1]
+            if ext == '.jpg' or ext == '.jpeg':
+                img = os.path.join(srcDir,file)
+                result = os.path.join(dstDir,file)
+                print (img)
+                image = cv2.imread(img)
+                image   = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+                r_image = retinaface.detect_image(image)
+
+                r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
+                cv2.imwrite(result, r_image)
+
+    elif  mode == "predict":
         '''
         predict.py有几个注意点
         1、无法进行批量预测，如果想要批量预测，可以利用os.listdir()遍历文件夹，利用cv2.imread打开图片文件进行预测。
