@@ -69,7 +69,7 @@ class Retinaface(object):
         "facenet_input_shape"   : [160,160,3],
         "facenet_threhold"      : 0.9,
 
-        "cuda"                  : True
+        "cuda"                  : False
     }
 
     @classmethod
@@ -123,6 +123,7 @@ class Retinaface(object):
     def encode_face_dataset(self, image_paths, names):
         face_encodings = []
         for index, path in enumerate(tqdm(image_paths)):
+            logging.debug('%s',path)
             image = Image.open(path)
             image = np.array(image, np.float32)
             old_image = image.copy()
