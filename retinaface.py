@@ -106,10 +106,14 @@ class Retinaface(object):
         self.facenet    = Facenet(backbone=self.facenet_backbone, mode="predict").eval()
 
         print('Loading weights into state dict...')
-        state_dict = torch.load(self.retinaface_model_path)
+        if self.cuda:
+            map_location=torch.device('cuda')
+        else:
+            map_location=torch.device('cpu')
+        state_dict = torch.load(self.retinaface_model_path,map_location = map_location)
         self.net.load_state_dict(state_dict)
 
-        state_dict = torch.load(self.facenet_model_path)
+        state_dict = torch.load(self.facenet_model_path, map_location= map_location)
         self.facenet.load_state_dict(state_dict, strict=False)
 
         if self.cuda:
