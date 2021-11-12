@@ -2,8 +2,8 @@
 #   对视频中的predict.py进行了修改，
 #   将单张图片预测、摄像头检测和FPS测试功能
 #   整合到了一个py文件中，通过指定mode进行模式的修改。
-#   python predict.py /temp1/img /temp1/result
-#
+#   python predict.py /temp1/img /temp1/result  
+#   python predict.py N:\backupSync\DigitalPhoto\2021 w:\temp
 #----------------------------------------------------#
 import time
 import os, sys
@@ -48,19 +48,27 @@ if __name__ == "__main__":
             srcDir = input('Input source dir:')
             dstDir = input('Input destination dir:')
 
-        srcDirs = os.listdir( srcDir )
-        for file in srcDirs:
-            ext = os.path.splitext(file)[1]
-            if ext == '.jpg' or ext == '.jpeg':
-                img = os.path.join(srcDir,file)
-                result = os.path.join(dstDir,file)
-                print (img)
-                image = cv2.imread(img)
-                image   = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-                r_image = retinaface.detect_image(image)
+        for root, dirs, files in os.walk( srcDir):
+            for f in files:
+                file =os.path.join(root,f)
+                # file = file.replace("\\","/"  )
+                ext = os.path.splitext(file)[1]
+                if ext == '.jpg' or ext == '.jpeg' or ext == '.png':
+                    img = os.path.join(srcDir,file)
+                    result = os.path.join(dstDir,file)
+                    print (img)
+                    # image = cv2.imread(img)
+                    # 因为imread不支持中文文件名，所以需要由open读了文件后再交给np
+                    stream = open(img, "rb")
+                    bytes = bytearray(stream.read())
+                    numpyarray = np.asarray(bytes, dtype=np.uint8)
+                    image = cv2.imdecode(numpyarray, cv2.IMREAD_UNCHANGED)
 
-                # r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
-                # cv2.imwrite(result, r_image)
+                    image   = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+                    r_image = retinaface.detect_image(image)
+
+                    # r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
+                    # cv2.imwrite(result, r_image)
 
     elif  mode == "predict":
         '''
