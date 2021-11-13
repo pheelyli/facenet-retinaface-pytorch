@@ -384,7 +384,11 @@ class Retinaface(object):
                 name = face_names[i]
                 text = "{:.4f}".format(b[4])
                 b = list(map(int, b))
+                logging.debug('%s - %s - %d,%d,%d,%d', name, text, b[0], b[1], b[2]-b[0], b[3]-b[1])
+                continue
+            
                 # cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
+                # 改用绿色框
                 cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 255, 0), 2)
                 cx = b[0]
                 cy = b[1] + 12
@@ -405,7 +409,6 @@ class Retinaface(object):
                 #   如果不是必须，可以换成cv2只显示英文。
                 #--------------------------------------------------------------#
                 old_image = cv2ImgAddText(old_image, name, b[0]+5 , b[3] - 25)
-                logging.debug('%s - %s - %d,%d,%d,%d', name, text, b[0], b[1], b[2]-b[0], b[3]-b[1])
         return old_image
 
     def get_FPS(self, image, test_interval):
