@@ -3,12 +3,16 @@
 #   将单张图片预测、摄像头检测和FPS测试功能
 #   整合到了一个py文件中，通过指定mode进行模式的修改。
 #   python predict.py /temp1/img /temp1/result  
-#   python predict.py N:\backupSync\DigitalPhoto\2021 w:\temp
+#   python predict.py N:\backupSync\DigitalPhoto\2021 
 #----------------------------------------------------#
 import time
-import os, sys
+import os, sys, logging, io
 import cv2
 import numpy as np
+import photoFaces
+import json
+from tqdm import tqdm
+
 
 from retinaface import Retinaface
 
@@ -41,22 +45,33 @@ if __name__ == "__main__":
         4、如果想要截取下目标，可以利用获取到的(b[0], b[1]), (b[2], b[3])这四个值在原图上利用矩阵的方式进行截取。
         5、在更换facenet网络后一定要重新进行人脸编码，运行encoding.py。
         '''
-        if len(sys.argv) == 3:
+        if len(sys.argv) == 2:
             srcDir = sys.argv[1]
-            dstDir = sys.argv[2]
+            # dstDir = sys.argv[2]
         else:
             srcDir = input('Input source dir:')
-            dstDir = input('Input destination dir:')
-
+            # dstDir = input('Input destination dir:')
+        
+        rootResults={}
         for root, dirs, files in os.walk( srcDir):
-            for f in files:
+            rootResults[root]=files
+        dirBar = tqdm(rootResults.keys(), desc='目录：', leave=False)
+        for root in dirBar:
+            dirBar.set_description("目录：{}".format(root) )
+            # logging.debug('%s\n%s\n%s',root,dirs,files)
+            files = rootResults[root]
+            dirPhotos = photoFaces.Photos( root )
+            pbar = tqdm(files,desc='文件：', leave=False)
+            for f in pbar:
+                pbar.set_description("{}...".format(f) )
                 file =os.path.join(root,f)
                 # file = file.replace("\\","/"  )
                 ext = os.path.splitext(file)[1]
                 if ext == '.jpg' or ext == '.jpeg' or ext == '.png':
+
                     img = os.path.join(srcDir,file)
-                    result = os.path.join(dstDir,file)
-                    print (img)
+                    # result = os.path.join(dstDir,file)
+                    # print (img)
                     # image = cv2.imread(img)
                     # 因为imread不支持中文文件名，所以需要由open读了文件后再交给np
                     stream = open(img, "rb")
@@ -65,11 +80,19 @@ if __name__ == "__main__":
                     image = cv2.imdecode(numpyarray, cv2.IMREAD_UNCHANGED)
 
                     image   = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-                    r_image = retinaface.detect_image(image)
-
+                    faces = retinaface.detect_image(image)
+                    # logging.debug( json.dumps(faces, default=lambda obj: obj.__dict__, sort_keys=True, indent=4) )
+                    if len(faces) > 0 :
+                        photo = photoFaces.Photo( f )
+                        dirPhotos.photos.append( photo )
+                        photo.faces = faces
                     # r_image = cv2.cvtColor(r_image,cv2.COLOR_RGB2BGR)
                     # cv2.imwrite(result, r_image)
-
+            txtOut = json.dumps(dirPhotos, default=lambda obj: obj.__dict__, sort_keys=False, indent=4, ensure_ascii=False) 
+            txtFile = os.path.join(root,'faces.json')
+            with io.open(txtFile,'w',encoding='utf8') as file:
+                file.write(txtOut)
+            pbar.set_description("处理 {} OK!".format(root) )
     elif  mode == "predict":
         '''
         predict.py有几个注意点

@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
+import photoFaces
+import json
 
 from nets.facenet import Facenet
 from nets_retinaface.retinaface import RetinaFace
@@ -127,7 +129,7 @@ class Retinaface(object):
     def encode_face_dataset(self, image_paths, names):
         face_encodings = []
         for index, path in enumerate(tqdm(image_paths)):
-            logging.debug('%s',path)
+            # logging.debug('%s',path)
             image = Image.open(path)
             image = np.array(image, np.float32)
             old_image = image.copy()
@@ -297,7 +299,8 @@ class Retinaface(object):
         #---------------------------------------------------#
         
         if len(boxes_conf_landms)<=0:
-            return old_image
+            # return old_image
+            return []
 
         boxes_conf_landms = np.array(boxes_conf_landms)
         if self.letterbox_image:
@@ -379,12 +382,16 @@ class Retinaface(object):
                 output_indexs.append(i)
 
         #这里才是真正输出
+        faces = []
         for i, b in enumerate(boxes_conf_landms):
             if output_indexs.count(i) >0:
                 name = face_names[i]
                 text = "{:.4f}".format(b[4])
                 b = list(map(int, b))
-                logging.debug('%s - %s - %d,%d,%d,%d', name, text, b[0], b[1], b[2]-b[0], b[3]-b[1])
+                
+                # logging.debug('%s - %s - %d,%d,%d,%d', name, text, b[0], b[1], b[2]-b[0], b[3]-b[1])
+                oneFace = photoFaces.Face(name,  b[0], b[1], b[2]-b[0], b[3]-b[1])
+                faces.append( oneFace)
                 continue
             
                 # cv2.rectangle(old_image, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
@@ -409,7 +416,7 @@ class Retinaface(object):
                 #   如果不是必须，可以换成cv2只显示英文。
                 #--------------------------------------------------------------#
                 old_image = cv2ImgAddText(old_image, name, b[0]+5 , b[3] - 25)
-        return old_image
+        return faces
 
     def get_FPS(self, image, test_interval):
         image = np.array(image, np.float32)
